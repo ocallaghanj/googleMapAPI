@@ -34,6 +34,20 @@
         }
     </style>
 
+    <script>
+        window.addEventListener('load',function(){
+            if(document.getElementById('map')){
+                google.load("maps", "3",{
+                  callback:function(){
+                     new google.maps.Map(document.getElementById('map'), {
+                        center: new google.maps.LatLng(0,0),
+                        zoom: 3
+                      });
+                  }
+                });     
+            }
+        },false);
+    </script>
     <!-- See explanation at the bottom of this file for info regarding placement of JS libraries. -->
     <!-- These library references (below) are just examples to give you the general idea... -->
     <!-- <script src="lib/mc/hammer.js"></script> -->
@@ -59,13 +73,19 @@
     <div class="align-center">
         <form>
             Location:<br>
-            <input type="text" name="location"><br>
+            <input type="text" name="location" id="start"><br>
             Destination:<br>
-            <input type="text" name="destination">
+            <input type="text" name="destination" id="end">
         </form>
     </div>
 
-    <div id="map" class="align-center"></div>
+    <div class="align-center">
+        <button onclick="calcRoute()">Get Directions</button>
+    </div>
+    
+    <!-- Original code for diplaying basic map. Updated with directions template below -->
+    <!-- <div id="map" class="align-center"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWZWqb94XtQ02q_YC4ug3qnsyrrun0k0w&callback=initMap" async defer></script>
     <script>
       var map;
       function initMap() {
@@ -74,14 +94,142 @@
           zoom: 8
         });
       }
-    </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWZWqb94XtQ02q_YC4ug3qnsyrrun0k0w&callback=initMap" async defer></script>
+        
+    </script> -->
     
+    <!-- Script for mapping out directions from form boxes -->
+    <script>
+        //function getDir() {
+            
+        //}
+    </script>
     <!-- IMPORTANT: Do not include a weinre script tag as part of your release builds! -->
     <!-- Place your remote debugging weinre script URL here, if it does not work below. -->
 
     <!-- See <head> section above for additional JS libraries loaded as part of this application. -->
 
+    
+    <input id="origin-input" class="controls" type="text"
+        placeholder="Enter an origin location">
+
+    <input id="destination-input" class="controls" type="text"
+        placeholder="Enter a destination location">
+
+    <div id="mode-selector" class="controls">
+      <input type="radio" name="type" id="changemode-walking" checked="checked">
+      <label for="changemode-walking">Walking</label>
+
+      <input type="radio" name="type" id="changemode-transit">
+      <label for="changemode-transit">Transit</label>
+
+      <input type="radio" name="type" id="changemode-driving">
+      <label for="changemode-driving">Driving</label>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+      // This example requires the Places library. Include the libraries=places
+      // parameter when you first load the API. For example:
+      // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          mapTypeControl: false,
+          center: {lat: -33.8688, lng: 151.2195},
+          zoom: 13
+        });
+
+        new AutocompleteDirectionsHandler(map);
+      }
+
+       /**
+        * @constructor
+       */
+      function AutocompleteDirectionsHandler(map) {
+        this.map = map;
+        this.originPlaceId = null;
+        this.destinationPlaceId = null;
+        this.travelMode = 'WALKING';
+        var originInput = document.getElementById('origin-input');
+        var destinationInput = document.getElementById('destination-input');
+        var modeSelector = document.getElementById('mode-selector');
+        this.directionsService = new google.maps.DirectionsService;
+        this.directionsDisplay = new google.maps.DirectionsRenderer;
+        this.directionsDisplay.setMap(map);
+
+        var originAutocomplete = new google.maps.places.Autocomplete(
+            originInput, {placeIdOnly: true});
+        var destinationAutocomplete = new google.maps.places.Autocomplete(
+            destinationInput, {placeIdOnly: true});
+
+        this.setupClickListener('changemode-walking', 'WALKING');
+        this.setupClickListener('changemode-transit', 'TRANSIT');
+        this.setupClickListener('changemode-driving', 'DRIVING');
+
+        this.setupPlaceChangedListener(originAutocomplete, 'ORIG');
+        this.setupPlaceChangedListener(destinationAutocomplete, 'DEST');
+
+        this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(originInput);
+        this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(destinationInput);
+        this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(modeSelector);
+      }
+
+      // Sets a listener on a radio button to change the filter type on Places
+      // Autocomplete.
+      AutocompleteDirectionsHandler.prototype.setupClickListener = function(id, mode) {
+        var radioButton = document.getElementById(id);
+        var me = this;
+        radioButton.addEventListener('click', function() {
+          me.travelMode = mode;
+          me.route();
+        });
+      };
+
+      AutocompleteDirectionsHandler.prototype.setupPlaceChangedListener = function(autocomplete, mode) {
+        var me = this;
+        autocomplete.bindTo('bounds', this.map);
+        autocomplete.addListener('place_changed', function() {
+          var place = autocomplete.getPlace();
+          if (!place.place_id) {
+            window.alert("Please select an option from the dropdown list.");
+            return;
+          }
+          if (mode === 'ORIG') {
+            me.originPlaceId = place.place_id;
+          } else {
+            me.destinationPlaceId = place.place_id;
+          }
+          me.route();
+        });
+
+      };
+
+      AutocompleteDirectionsHandler.prototype.route = function() {
+        if (!this.originPlaceId || !this.destinationPlaceId) {
+          return;
+        }
+        var me = this;
+
+        this.directionsService.route({
+          origin: {'placeId': this.originPlaceId},
+          destination: {'placeId': this.destinationPlaceId},
+          travelMode: this.travelMode
+        }, function(response, status) {
+          if (status === 'OK') {
+            me.directionsDisplay.setDirections(response);
+          } else {
+            window.alert('Directions request failed due to ' + status);
+          }
+        });
+      };
+
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWZWqb94XtQ02q_YC4ug3qnsyrrun0k0w&libraries=places&callback=initMap"
+        async defer></script>
+    
+
+    
     <!-- "Phantom" cordova.js required for projects that use Cordova plugins. -->
     <script src="cordova.js"></script>
 
